@@ -12,8 +12,12 @@ COPY Pipfile Pipfile.lock /app/
 
 RUN pipenv install --system --deploy
 
-COPY . /app
+RUN mkdir -p /app/backend
+
+COPY . /app/backend
+
+WORKDIR /app
 
 EXPOSE 5000
 
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "__init__:app"]
+CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "backend:app"]
