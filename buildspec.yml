@@ -19,7 +19,7 @@ phases:
       - echo "Building backend Docker image..."
       - docker build -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:latest ./starter/backend
       - echo "Building frontend Docker image..."
-      - docker build --build-arg REACT_APP_MOVIE_API_URL=http://backend -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:latest ./starter/frontend
+      - docker build --build-arg REACT_APP_MOVIE_API_URL=http://a42a780e367684155ac035266f9850dc-286608225.us-east-1.elb.amazonaws.com -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:latest ./starter/frontend
 
   post_build:
     commands:
