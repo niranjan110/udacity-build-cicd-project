@@ -1,0 +1,45 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region us-east-1 \
+            --name cluster
+
+      - name: Deploy backend
+        run: |
+          kubectl apply -k starter/backend/k8s
+
+      - name: Deploy frontend
+        run: |
+          kubectl apply -k starter/frontend/k8s
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/backend
+          kubectl rollout status deployment/frontend
+          kubectl get pods
+          kubectl get services
