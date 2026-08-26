@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend 
+  name: backend
   labels:
     app: backend
 spec:
@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: backend
-          image: backend
+          image: 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:latest
           ports:
             - containerPort: 5000
