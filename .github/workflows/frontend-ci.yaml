@@ -1,3 +1,71 @@
+name: Frontend Continuous Integration
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'starter/frontend/**'
+
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'starter/frontend/**'
+
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: starter/frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: starter/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: starter/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: starter/frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: starter/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: starter/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: CI=true npm test -- --watchAll=false --passWithNoTests
+
   build:
     name: Docker Build
     runs-on: ubuntu-latest
