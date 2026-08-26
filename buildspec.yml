@@ -3,29 +3,33 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
+      - echo "Logging in to Amazon ECR..."
       - aws --version
-      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - AWS_REGION=us-east-1
-      - ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+      - docker --version
+      - echo "Checking AWS identity..."
+      - aws sts get-caller-identity
+      - echo "Getting ECR login password..."
+      - aws ecr get-login-password --region us-east-1 > /tmp/ecr_password
+      - echo "Logging into ECR..."
+      - cat /tmp/ecr_password | docker login --username AWS --password-stdin 580953451085.dkr.ecr.us-east-1.amazonaws.com
 
   build:
     commands:
-      - echo Build started on `date`
-      - echo Building backend Docker image...
-      - docker build -t ${ECR_REGISTRY}/backend:latest ./starter/backend
-      - echo Building frontend Docker image...
-      - docker build --build-arg REACT_APP_MOVIE_API_URL=http://backend -t ${ECR_REGISTRY}/frontend:latest ./starter/frontend
+      - echo "Build started on $(date)"
+      - echo "Building backend Docker image..."
+      - docker build -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:latest ./starter/backend
+      - echo "Building frontend Docker image..."
+      - docker build --build-arg REACT_APP_MOVIE_API_URL=http://backend -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:latest ./starter/frontend
 
   post_build:
     commands:
-      - echo Pushing backend image...
-      - docker push ${ECR_REGISTRY}/backend:latest
-      - echo Pushing frontend image...
-      - docker push ${ECR_REGISTRY}/frontend:latest
-      - echo Build completed on `date`
+      - echo "Pushing backend image..."
+      - docker push 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+      - echo "Pushing frontend image..."
+      - docker push 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+      - echo "Build completed on $(date)"
 
 artifacts:
   files:
     - '**/*'
+

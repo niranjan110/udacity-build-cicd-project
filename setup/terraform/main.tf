@@ -1,5 +1,5 @@
 ####################
-# VPC
+# VPC Configuration
 ####################
 
 resource "aws_vpc" "vpc" {
@@ -35,6 +35,10 @@ resource "aws_subnet" "public_subnet" {
   }
 }
 
+####################
+# Public Route Table
+####################
+
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.vpc.id
 
@@ -67,6 +71,10 @@ resource "aws_subnet" "private_subnet" {
   }
 }
 
+####################
+# Private Route Table
+####################
+
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.vpc.id
 
@@ -81,7 +89,67 @@ resource "aws_route_table_association" "private" {
 }
 
 ####################
-# ECR
+# VPC Endpoints
+####################
+
+resource "aws_vpc_endpoint" "eks" {
+  count = var.enable_private ? 1 : 0
+
+  vpc_id              = aws_vpc.vpc.id
+  service_name        = "com.amazonaws.us-east-1.eks"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id]
+  private_dns_enabled = true
+
+  security_group_ids = [
+    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  ]
+}
+
+resource "aws_vpc_endpoint" "ec2" {
+  count = var.enable_private ? 1 : 0
+
+  vpc_id              = aws_vpc.vpc.id
+  service_name        = "com.amazonaws.us-east-1.ec2"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id]
+  private_dns_enabled = true
+
+  security_group_ids = [
+    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  ]
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr_endpoint" {
+  count = var.enable_private ? 1 : 0
+
+  vpc_id              = aws_vpc.vpc.id
+  service_name        = "com.amazonaws.us-east-1.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id]
+  private_dns_enabled = true
+
+  security_group_ids = [
+    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  ]
+}
+
+resource "aws_vpc_endpoint" "ecr_api_endpoint" {
+  count = var.enable_private ? 1 : 0
+
+  vpc_id              = aws_vpc.vpc.id
+  service_name        = "com.amazonaws.us-east-1.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id]
+  private_dns_enabled = true
+
+  security_group_ids = [
+    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  ]
+}
+
+####################
+# ECR Repositories
 ####################
 
 resource "aws_ecr_repository" "frontend" {
@@ -105,37 +173,6 @@ resource "aws_ecr_repository" "backend" {
 }
 
 ####################
-# EKS Cluster IAM Role
-####################
-
-resource "aws_iam_role" "eks_cluster" {
-  name = "eks_cluster_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-
-    Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
-
-      Principal = {
-        Service = "eks.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "eks_cluster" {
-  role       = aws_iam_role.eks_cluster.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "eks_service" {
-  role       = aws_iam_role.eks_cluster.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
-}
-
-####################
 # EKS Cluster
 ####################
 
@@ -150,7 +187,7 @@ resource "aws_eks_cluster" "main" {
       aws_subnet.public_subnet.id
     ]
 
-    endpoint_public_access  = true
+    endpoint_public_access  = var.enable_private ? false : true
     endpoint_private_access = true
   }
 
@@ -160,40 +197,37 @@ resource "aws_eks_cluster" "main" {
   ]
 }
 
-####################
-# Node Group IAM Role
-####################
+############################
+# EKS Cluster IAM Role
+############################
 
-data "aws_iam_policy_document" "assume_role_policy" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRole"]
+resource "aws_iam_role" "eks_cluster" {
+  name = "eks_cluster_role"
 
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
-resource "aws_iam_role" "node_group" {
-  name               = "udacity-node-group"
-  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+resource "aws_iam_role_policy_attachment" "eks_cluster" {
+  role       = aws_iam_role.eks_cluster.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "node_group_policy" {
-  role       = aws_iam_role.node_group.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "cni_policy" {
-  role       = aws_iam_role.node_group.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-}
-
-resource "aws_iam_role_policy_attachment" "ecr_policy" {
-  role       = aws_iam_role.node_group.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+resource "aws_iam_role_policy_attachment" "eks_service" {
+  role       = aws_iam_role.eks_cluster.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
 }
 
 ####################
@@ -238,54 +272,39 @@ resource "aws_eks_node_group" "main" {
 }
 
 ####################
-# CodeBuild IAM Role
+# Node Group IAM
 ####################
 
-resource "aws_iam_role" "codebuild" {
-  name = "codebuild-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-
-    Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
-
-      Principal = {
-        Service = "codebuild.amazonaws.com"
-      }
-    }]
-  })
+resource "aws_iam_role" "node_group" {
+  name               = "udacity-node-group"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
-resource "aws_iam_role_policy_attachment" "codebuild" {
-  role       = aws_iam_role.codebuild.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess"
+resource "aws_iam_role_policy_attachment" "node_group_policy" {
+  role       = aws_iam_role.node_group.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-####################
-# CodeBuild CloudWatch Logs
-####################
+resource "aws_iam_role_policy_attachment" "cni_policy" {
+  role       = aws_iam_role.node_group.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
 
-resource "aws_iam_role_policy" "codebuild_logs" {
-  name = "codebuild-cloudwatch-logs"
-  role = aws_iam_role.codebuild.id
+resource "aws_iam_role_policy_attachment" "ecr_policy" {
+  role       = aws_iam_role.node_group.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
 
-  policy = jsonencode({
-    Version = "2012-10-17"
+data "aws_iam_policy_document" "assume_role_policy" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
 
-    Statement = [{
-      Effect = "Allow"
-
-      Action = [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ]
-
-      Resource = "*"
-    }]
-  })
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
 }
 
 ####################
@@ -304,7 +323,7 @@ resource "aws_codebuild_project" "codebuild" {
 
   environment {
     compute_type                = "BUILD_GENERAL1_SMALL"
-    image                       = "aws/codebuild/standard:5.0"
+    image                       = "aws/codebuild/standard:7.0"
     type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
     privileged_mode             = true
@@ -320,6 +339,97 @@ resource "aws_codebuild_project" "codebuild" {
   cache {
     type = "NO_CACHE"
   }
+}
+
+####################
+# CodeBuild IAM Role
+####################
+
+resource "aws_iam_role" "codebuild" {
+  name = "codebuild-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+
+        Principal = {
+          Service = "codebuild.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+############################
+# CodeBuild Admin Permissions
+############################
+
+resource "aws_iam_role_policy_attachment" "codebuild" {
+  role       = aws_iam_role.codebuild.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess"
+}
+
+############################
+# CodeBuild CloudWatch Logs
+############################
+
+resource "aws_iam_role_policy" "codebuild_logs" {
+  name = "codebuild-cloudwatch-logs"
+  role = aws_iam_role.codebuild.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+############################
+# CodeBuild ECR Permissions
+############################
+
+resource "aws_iam_role_policy" "codebuild_ecr" {
+  name = "codebuild-ecr-access"
+  role = aws_iam_role.codebuild.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:CompleteLayerUpload",
+          "ecr:InitiateLayerUpload",
+          "ecr:PutImage",
+          "ecr:UploadLayerPart",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 ####################
