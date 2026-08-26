@@ -1,13 +1,23 @@
-name: Backend CI
+name: Backend Continuous Integration
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
+    paths:
+      - 'starter/backend/**'
+
   pull_request:
-    branches: [master]
+    branches:
+      - master
+    paths:
+      - 'starter/backend/**'
+
+  workflow_dispatch:
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-latest
 
     steps:

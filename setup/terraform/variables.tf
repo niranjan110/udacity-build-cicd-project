@@ -1,19 +1,23 @@
 variable "k8s_version" {
-  default = "1.25"
+  type        = string
+  description = "EKS Kubernetes version"
+  default     = "1.33"
 }
 
 variable "enable_private" {
-  default = false
+  type        = bool
+  description = "Enable private EKS endpoint and private VPC endpoints"
+  default     = false
 }
 
 variable "public_az" {
   type        = string
-  description = "Change this to a letter a-f only if you encounter an error during setup"
+  description = "Availability Zone letter for public subnet"
   default     = "a"
 }
 
 variable "private_az" {
   type        = string
-  description = "Change this to a letter a-f only if you encounter an error during setup"
+  description = "Availability Zone letter for private subnet"
   default     = "b"
 }
