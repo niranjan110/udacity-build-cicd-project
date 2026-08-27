@@ -246,7 +246,7 @@ resource "aws_eks_node_group" "main" {
     : aws_subnet.public_subnet.id
   ]
 
-  ami_type = "BOTTLEROCKET_x86_64"
+  ami_type = "AL2023_x86_64_STANDARD"
 
   instance_types = [
     "t3.small"
