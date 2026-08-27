@@ -3,13 +3,13 @@ name: Frontend Continuous Integration
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'starter/frontend/**'
 
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - 'starter/frontend/**'
 
