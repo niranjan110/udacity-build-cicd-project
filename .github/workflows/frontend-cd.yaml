@@ -86,12 +86,12 @@ jobs:
         run: |
           docker build \
             --build-arg REACT_APP_MOVIE_API_URL=http://a42a780e367684155ac035266f9850dc-286608225.us-east-1.elb.amazonaws.com \
-            -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:latest \
+            -t 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:${{ github.sha }} \
             starter/frontend
 
       - name: Push Docker image to ECR
         run: |
-          docker push 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+          docker push 580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:${{ github.sha }}
 
       - name: Update kubeconfig
         run: |
@@ -102,10 +102,14 @@ jobs:
       - name: Deploy frontend to EKS
         run: |
           kubectl apply -k starter/frontend/k8s
-          kubectl rollout restart deployment/frontend
+
+          kubectl set image deployment/frontend \
+            frontend=580953451085.dkr.ecr.us-east-1.amazonaws.com/frontend:${{ github.sha }}
+
           kubectl rollout status deployment/frontend --timeout=5m
 
       - name: Verify frontend
         run: |
+          kubectl get deployment frontend
           kubectl get pods
           kubectl get service frontend

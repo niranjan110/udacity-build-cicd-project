@@ -13,6 +13,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: starter/backend
@@ -38,6 +39,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: starter/backend
@@ -63,6 +65,7 @@ jobs:
   build-and-deploy:
     name: Build and Deploy Backend
     runs-on: ubuntu-latest
+
     needs:
       - lint
       - test
@@ -85,13 +88,11 @@ jobs:
         run: |
           docker build \
             --tag 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:${{ github.sha }} \
-            --tag 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:latest \
             starter/backend
 
       - name: Push Docker image to ECR
         run: |
           docker push 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:${{ github.sha }}
-          docker push 580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:latest
 
       - name: Update kubeconfig
         run: |
@@ -102,10 +103,14 @@ jobs:
       - name: Deploy backend to EKS
         run: |
           kubectl apply -k starter/backend/k8s
-          kubectl rollout restart deployment/backend
+
+          kubectl set image deployment/backend \
+            backend=580953451085.dkr.ecr.us-east-1.amazonaws.com/backend:${{ github.sha }}
+
           kubectl rollout status deployment/backend --timeout=5m
 
       - name: Verify backend
         run: |
+          kubectl get deployment backend
           kubectl get pods
           kubectl get service backend
